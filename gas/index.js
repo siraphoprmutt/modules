@@ -1,3 +1,5 @@
+// https://docs.google.com/spreadsheets/d/1GKbo9kKu-2shA6JgL6pfLdZvjjhOzrmPB-dnGM8yyKI/copy
+
 // gas index.js (reverse proxy แบบ client-side)
 (() => {
   if (window.__gasProxyInstalled) return; window.__gasProxyInstalled = true;
