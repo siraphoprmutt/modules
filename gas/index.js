@@ -58,18 +58,23 @@ window.fetch = async (input, init) => {
       const ct = req.headers.get("content-type") || "";
       // 1) FormData / x-www-form-urlencoded
       if (ct.includes("multipart/form-data") || ct.includes("application/x-www-form-urlencoded")) {
-        const fd = await req.clone().formData();
-        const entries = [];
-        for (const [k, v] of fd.entries()) {
-          if (v instanceof File) {
-            const ab = await v.arrayBuffer();
-            const b64 = btoa(String.fromCharCode(...new Uint8Array(ab)));
-            entries.push([k, { filename: v.name, type: v.type, size: v.size, base64: b64 }]);
-          } else {
-            entries.push([k, String(v)]);
+          const fd = await req.clone().formData();
+          const obj = {};
+          for (const [k, v] of fd.entries()) {
+            if (v instanceof File) {
+              const ab  = await v.arrayBuffer();
+              const b64 = btoa(String.fromCharCode(...new Uint8Array(ab)));
+              obj[k] = {
+                filename: v.name,
+                type:     v.type,
+                size:     v.size,
+                base64:   b64
+              };
+            } else {
+              obj[k] = String(v);
+            }
           }
-        }
-        body = { __form: true, entries };
+          body = obj;
       } else {
         // 2) อื่น ๆ → อ่านเป็น text แล้วพยายาม parse JSON
         const t = await req.clone().text();
