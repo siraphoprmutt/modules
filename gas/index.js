@@ -59,27 +59,28 @@ window.fetch = async (input, init) => {
       // 1) FormData / x-www-form-urlencoded
       if (ct.includes("multipart/form-data") || ct.includes("application/x-www-form-urlencoded")) {
           const fd = await req.clone().formData();
+        
+          // helper: รองรับคีย์ซ้ำ -> ทำเป็น array ให้อัตโนมัติ
+          const pushKV = (obj, k, v) => {
+            if (k in obj) { if (!Array.isArray(obj[k])) obj[k] = [obj[k]]; obj[k].push(v); }
+            else obj[k] = v;
+          };
+        
           const obj = {};
           for (const [k, v] of fd.entries()) {
             if (v instanceof File) {
               const ab  = await v.arrayBuffer();
               const b64 = btoa(String.fromCharCode(...new Uint8Array(ab)));
-              obj[k] = {
-                filename: v.name,
-                type:     v.type,
-                size:     v.size,
-                base64:   b64
-              };
+              pushKV(obj, k, { filename: v.name, type: v.type, size: v.size, base64: b64 });
             } else {
-              obj[k] = String(v);
+              pushKV(obj, k, String(v));
             }
           }
-          body = obj;
-      } else {
-        // 2) อื่น ๆ → อ่านเป็น text แล้วพยายาม parse JSON
-        const t = await req.clone().text();
-        body = t ? (() => { try { return JSON.parse(t) } catch { return t } })() : null;
-      }
+          body = obj; // ✅ ส่งเป็น object key/value ปกติ (คีย์ซ้ำ -> array)
+        } else {
+          const t = await req.clone().text();
+          try { body = t ? JSON.parse(t) : null; } catch { body = t || null; }
+        }
     }
   } catch {}
 
