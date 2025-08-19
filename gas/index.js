@@ -45,27 +45,49 @@
     return { wrap: false };
   };
 
-  window.fetch = async (input, init) => {
-    const req = input instanceof Request ? input : new Request(input, init);
-    const pl = plan(req.url);
-    if (!pl.wrap) return OF(req);
+window.fetch = async (input, init) => {
+  const req = input instanceof Request ? input : new Request(input, init);
+  const pl = plan(req.url);
+  if (!pl.wrap) return OF(req);
 
-    const query = Object.fromEntries(pl.full.searchParams.entries());
-    let text = null;
-    try { if (!/^(GET|HEAD)$/i.test(req.method)) text = await req.clone().text(); } catch {}
-    const body = text ? safeJSON(text) : null;
+  const query = Object.fromEntries(pl.full.searchParams.entries());
 
-    const payload = {
+  let body = null;
+  try {
+    if (!/^(GET|HEAD)$/i.test(req.method)) {
+      const ct = req.headers.get("content-type") || "";
+      // 1) FormData / x-www-form-urlencoded
+      if (ct.includes("multipart/form-data") || ct.includes("application/x-www-form-urlencoded")) {
+        const fd = await req.clone().formData();
+        const entries = [];
+        for (const [k, v] of fd.entries()) {
+          if (v instanceof File) {
+            const ab = await v.arrayBuffer();
+            const b64 = btoa(String.fromCharCode(...new Uint8Array(ab)));
+            entries.push([k, { filename: v.name, type: v.type, size: v.size, base64: b64 }]);
+          } else {
+            entries.push([k, String(v)]);
+          }
+        }
+        body = { __form: true, entries };
+      } else {
+        // 2) อื่น ๆ → อ่านเป็น text แล้วพยายาม parse JSON
+        const t = await req.clone().text();
+        body = t ? (() => { try { return JSON.parse(t) } catch { return t } })() : null;
+      }
+    }
+  } catch {}
+
+  // ส่งเข้า GAS เป็น simple request เพื่อเลี่ยง preflight
+  return OF(new Request(pl.base, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=UTF-8" },
+    body: JSON.stringify({
       method:  req.method,
       headers: Object.fromEntries(req.headers.entries()),
       path:    pl.path.startsWith("/") ? pl.path : "/" + pl.path,
       query,   body
-    };
-
-    return OF(new Request(pl.base, {
-      method: "POST",
-      //headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    }));
-  };
+    })
+  }));
+};
 })();
