@@ -25,21 +25,24 @@
   const safeJSON = t => { try { return JSON.parse(t); } catch { return t; } };
 
   const plan = (urlStr) => {
-    const u = new URL(String(urlStr), location.href);           // ทำ absolute เสมอ
+    const u = new URL(String(urlStr), location.href); // absolute เสมอ
     for (const p of PROXIES) {
-      if (u.pathname.startsWith(p.prefix)) {                    // ✅ เช็คที่ pathname
-        // path ส่วนที่เกินจาก prefix
-        const restPath = u.pathname.slice(p.prefix.length - 1) || "/";
-        // ต่อกับ base เพื่อดึง query รวมแบบถูกต้อง
-        const full = new URL(restPath + (u.search || ""), p.base);
-        const path = full.pathname.slice(p.base.pathname.length) || "/";
+      if (u.pathname.startsWith(p.prefix)) {
+        // ดึงส่วนที่เกิน prefix โดย "ไม่" มี "/" นำหน้า
+        const rest = u.pathname.slice(p.prefix.length); // <<< ไม่ -1 และไม่มี leading '/'
+        const full = new URL((rest || "") + (u.search || ""), p.base); // relative เข้ากับ base
+        const path = "/" + (rest || ""); // <<< path ที่จะส่งให้ GAS
         return { wrap: true, base: p.base, full, path };
       }
     }
-    // เผื่อเรียกเต็มๆ ที่เริ่มด้วย base อยู่แล้ว
+    // ถ้าผู้ใช้เรียกด้วย URL เต็มที่ขึ้นต้นด้วย base อยู่แล้ว
     for (const p of PROXIES) {
       if (u.href.startsWith(p.base.href)) {
-        const path = u.pathname.slice(p.base.pathname.length) || "/";
+        // คำนวณ path แบบปลอดภัย
+        let rel = u.pathname;
+        const basePath = p.base.pathname.replace(/\/+$/, "");
+        if (rel.startsWith(basePath)) rel = rel.slice(basePath.length);
+        const path = rel || "/";
         return { wrap: true, base: p.base, full: u, path };
       }
     }
