@@ -1,4 +1,5 @@
 // https://docs.google.com/spreadsheets/d/1GKbo9kKu-2shA6JgL6pfLdZvjjhOzrmPB-dnGM8yyKI/copy
+// https://script.google.com/macros/s/AKfycbx_ux3BTvwXBjQxND1vKTt-SnKlXQAIC_LKr2t3eTVXzx6uYCPqjHI5aGWKtfyTCIQ8UQ/exec
 
 // gas index.js (reverse proxy แบบ client-side)
 (() => {
